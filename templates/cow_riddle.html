@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <meta name = "viewport" content = "width = device-width">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <link rel="stylesheet" type="text/css" href="/static/style.css">
+   <link rel="stylesheet" type="text/css" href="static/style.css">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+
+<body>
+
+<header>
+    <h1>Openwest 2017 CTF</h1>
+</header>
+
+<div id="wrapper">
+
+    <main>
+        <div id="content">
+            <h1 class="challenge_name">{{ challenge_name }}</h1>
+            <pre class="cow">{{ text }}</pre>
+        </div>
+    </main>
+
+</div>
+
+<form action="cow_secrets/guess" method="POST">
+    <p><input type="hidden" name="riddler" value={{ riddler }}/></p>
+    <p><input type="hidden" name="question" value={{ question }}/></p>
+    <p><label for="answer">Answer:</label></p>
+    <p><input id="answer" type="text" name="answer"/></p>
+    <div
+            class="g-recaptcha"
+            data-sitekey="6LcfMhYUAAAAAEZ-7X3-i5LeQc9j2_TEf6O5O6bA"
+            data-theme="dark">
+    </div>
+    <br/>
+    <p><input type="submit" value="submit"/></p>
+</form>
+
+
+<footer>
+    <p>Hosted by Utah Open Source</p>
+</footer>
+
+</body>
+</html>
+<!doctype html>
+
+
