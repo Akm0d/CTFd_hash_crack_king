@@ -5,13 +5,11 @@ from passlib.hash import md5_crypt
 from os.path import expanduser
 import string
 import random
-
+from flask import current_app as app
 
 home = expanduser("~")
 # Globals
-WORD_FILE = "/usr/share/dict/words"
-if os.name == 'nt': WORD_FILE = home + '\\AppData\\Roaming\\Microsoft\\Spelling\\en-US\\default.dic'
-WORDS = open(WORD_FILE).read().splitlines()
+WORDS = open(app.config['WORD_FILE']).read().splitlines()
 
 
 def generate_hash(difficulty, count):
@@ -63,17 +61,16 @@ def generate_hash(difficulty, count):
     pass_hash = md5_crypt.encrypt(password, salt="salty")
     # passwd.write(user + ':x:' + str(uid) + ':1000:Test User,,,:/home:/usr/bin/zsh\n')
     # shadow.write(user + ':' + pass_hash + ':17080:0:99999:7:::\n')
-    print(password)
     return pass_hash, password
 
 
-if __name__ == "__main__":
-    import argparse
-    # Parse command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--count', help='Number of passwords in each difficulty level', type=int, default=5)
-    parser.add_argument('--difficulty', help='The difficulty of the hash', type=int, default=0)
-    parser.add_argument('-d', '--debug', help='Enable debugging mode', action="store_true")
-    parser.add_argument('-v', '--verbose', help='Enable verbose mode', action="store_true")
-    args = parser.parse_args()
-    print(generate_hash(args.difficulty, args.count))
+#if __name__ == "__main__":
+#    import argparse
+#    # Parse command line arguments
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument('--count', help='Number of passwords in each difficulty level', type=int, default=5)
+#    parser.add_argument('--difficulty', help='The difficulty of the hash', type=int, default=0)
+#    parser.add_argument('-d', '--debug', help='Enable debugging mode', action="store_true")
+#    parser.add_argument('-v', '--verbose', help='Enable verbose mode', action="store_true")
+#    args = parser.parse_args()
+#    print(generate_hash(args.difficulty, args.count))
