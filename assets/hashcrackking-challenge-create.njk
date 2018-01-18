@@ -1,0 +1,81 @@
+<form method="POST" action="{{ script_root }}/admin/chal/new" enctype="multipart/form-data">
+	<div class="form-group">
+		<label for="name">Name
+			<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The name of your challenge"></i>
+		</label>
+		<input type="text" class="form-control" name="name" placeholder="Enter challenge name">
+	</div>
+	<div class="form-group">
+		<label for="category">Category
+			<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The category of your challenge"></i>
+		</label>
+		<input type="text" class="form-control" name="category" placeholder="Enter challenge category">
+	</div>
+
+	<ul class="nav nav-tabs" role="tablist" id="new-desc-edit">
+		<li class="nav-item">
+			<a class="nav-link active" href="#new-desc-write" aria-controls="home" role="tab" data-toggle="tab">Write</a>
+		</li>
+		<li class="nav-item">
+			<a class="nav-link" href="#new-desc-preview" aria-controls="home" role="tab" data-toggle="tab">Preview</a>
+		</li>
+	</ul>
+
+	<div class="tab-content">
+		<div role="tabpanel" class="tab-pane active" id="new-desc-write">
+			<div class="form-group">
+				<label for="message-text" class="control-label">Message:
+					<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="Use this to give a brief introduction to your challenge. The description supports HTML and Markdown.  [HASH] will be replaced with the current hash."></i>
+				</label>
+				<textarea id="new-desc-editor" class="form-control" name="description" rows="10">[HASH]</textarea>
+			</div>
+		</div>
+		<div role="tabpanel" class="tab-pane content" id="new-desc-preview" style="height:234px; overflow-y: scroll;">
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label for="value">Capture Value
+			<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="This is how many points are rewarded for taking control of the hill."></i>
+		</label>
+		<input type="number" class="form-control" name="value" placeholder="Enter value" required>
+	</div>
+
+	<div class="form-group">
+		<label for="value">Hold Value
+			<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="This is how many points are rewarded every cycle to the team in control of the hill."></i>
+		</label>
+		<input type="number" class="form-control" name="hold" placeholder="Enter value" required>
+	</div>
+
+    <div class="form-group">
+        <label for="value">Seconds per Cycle
+            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The number of seconds between each update"></i>
+        </label>
+        <input type="number" class="form-control chal-value" name="cycles" placeholder="Enter seconds" required>
+    </div>
+
+	<div class="form-check">
+		<div class="checkbox">
+			<label class="form-check-label">
+				<input class="form-check-input" name="hidden" type="checkbox">
+				Hide challenge on creation
+			</label>
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label>Upload Word Lists
+			<i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="Word lists will be used when creating more simpler passwords"></i>
+		</label>
+		<input class="form-control-file" type="file" name="files[]" multiple="multiple">
+		<sub class="help-block">Attach multiple files using Control+Click or Cmd+Click.</sub>
+	</div>
+
+	<input type="hidden" value="{{ nonce }}" name="nonce" id="nonce">
+	<input type="hidden" value="hash_crack_king" name="chaltype" id="chaltype">
+
+	<div class="form-group">
+		<button class="btn btn-primary float-right create-challenge-submit" type="submit">Create</button>
+	</div>
+</form>

@@ -1,0 +1,96 @@
+<div id="update-challenge" class="modal fade" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h3 class="chal-title text-center"></h3>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ request.script_root }}/admin/chal/update">
+                    <input name='nonce' type='hidden' value="{{ nonce }}">
+
+                    <div class="form-group">
+                        <label for="name">Name
+                            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The name of your challenge"></i>
+                        </label>
+                        <input type="text" class="form-control chal-name" name="name" placeholder="Enter challenge name">
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category
+                            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The category of your challenge"></i>
+                        </label>
+                        <input type="text" class="form-control chal-category" name="category" placeholder="Enter challenge category">
+                    </div>
+
+                    <ul class="nav nav-tabs" role="tablist" id="desc-edit">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#desc-write" id="desc-write-link" aria-controls="home" role="tab" data-toggle="tab">
+                                Write
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#desc-preview" aria-controls="home" role="tab" data-toggle="tab">
+                                Preview
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div role="tabpanel" class="tab-pane active" id="desc-write">
+                            <div class="form-group">
+                                <label for="message-text" class="control-label">Message:
+                                    <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="Use this to give a brief introduction to your challenge. The description supports HTML and Markdown.  [HASH] will be replaced with the current hash."></i>
+                                </label>
+                                <textarea id="desc-editor" class="form-control chal-desc-editor" name="description" rows="10"></textarea>
+                            </div>
+                        </div>
+                        <div role="tabpanel" class="tab-pane content" id="desc-preview" style="height:214px; overflow-y: scroll;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="value">Capture Value
+                            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="This is how many points are rewarded for taking control of the hill."></i>
+                        </label>
+                        <input type="number" class="form-control" name="value" placeholder="Enter value" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="value">Hold Value
+                            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="This is how many points are rewarded every cycle to the team in control of the hill."></i>
+                        </label>
+                        <input type="number" class="form-control" name="hold" placeholder="Enter value" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="value">Seconds per Cycle
+                            <i class="far fa-question-circle text-muted cursor-help" data-toggle="tooltip" data-placement="right" title="The number of seconds between each update"></i>
+                        </label>
+                        <input type="number" class="form-control chal-value" name="cycles" placeholder="Enter seconds" required>
+                    </div>
+
+                    <input class="chal-id" type='hidden' name='id' placeholder='ID'>
+
+                    <div class="checkbox">
+                        <label>
+                            <input class="chal-hidden" name="hidden" type="checkbox">
+                            Hidden
+                        </label>
+                    </div>
+
+                    <input type="hidden" value="{{ nonce }}" name="nonce" id="nonce">
+                    <div style="text-align:center">
+                        <button class="btn btn-success btn-outlined update-challenge-submit" type="submit">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
