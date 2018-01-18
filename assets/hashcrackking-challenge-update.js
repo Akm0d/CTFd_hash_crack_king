@@ -52,11 +52,8 @@ function loadchal(id, update) {
         $('.chal-name').val(obj.name);
         $('.chal-desc-editor').val(obj.description);
         $('.chal-value').val(obj.value);
-        if (parseInt(obj.max_attempts) > 0){
-            $('.chal-attempts').val(obj.max_attempts);
-            $('#limit_max_attempts').prop('checked', true);
-            $('#chal-attempts-group').show();
-        }
+        $('.chal-hold').val(obj.hold);
+        $('.chal-cycles').val(obj.cycles);
         $('.chal-category').val(obj.category);
         $('.chal-id').val(obj.id);
         $('.chal-hidden').prop('checked', false);

@@ -71,6 +71,30 @@ def generate_hash(difficulty: int, count: int):
     return pass_hash, password
 
 
+class HashCrackKingChallenge(Challenges):
+    __mapper_args__ = {'polymorphic_identity': 'hash_crack_king'}
+    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
+    initial = db.Column(db.Integer)
+    # HAsh Crack King Challnege Values
+    hold = db.Column(db.Integer)
+    cycles = db.Column(db.Integer)
+    current_hash = db.Column(db.String(80))
+    king = db.Column(db.String(80))
+
+    def __init__(self, name, description, value, category, hold, cycles, type='hash_crack_king'):
+        self.name = name
+        self.description = description
+        self.value = value
+        self.initial = value
+        self.category = category
+        self.type = type
+        # Hash Crack King Challenge Values
+        self.hold = hold
+        self.cycles = cycles
+        self.king = None
+        self.current_hash = None
+
+
 class HashCrack(challenges.BaseChallenge):
     """hash-crack-king generates a new hash and flag every time it is solved"""
     id = "hash_crack_king"
@@ -104,7 +128,9 @@ class HashCrack(challenges.BaseChallenge):
             description=request.form['description'],
             value=request.form['value'],
             category=request.form['category'],
-            type=request.form['chaltype']
+            type=request.form['chaltype'],
+            hold=request.form['hold'],
+            cycles=request.form['cycles']
         )
 
         # self.cycles = int(request.form.get('cycles', 1)) if request.form.get('cycles', 1) else 1
@@ -124,7 +150,7 @@ class HashCrack(challenges.BaseChallenge):
             pass
 
     @staticmethod
-    def update(challenge, request):
+    def update(challenge: HashCrackKingChallenge, request):
         """
         This method is used to update the information associated with a challenge. This should be kept strictly to the
         Challenges table and any child tables.
@@ -136,15 +162,15 @@ class HashCrack(challenges.BaseChallenge):
         challenge.name = request.form['name']
         challenge.description = request.form['description']
         challenge.value = int(request.form.get('value', 0)) if request.form.get('value', 0) else 0
-        # self.cycles = int(request.form.get('cycles', 1)) if request.form.get('cycles', 1) else 1
-        # self.hold = int(request.form.get('cycles', 0)) if request.form.get('hold', 0) else 0
+        challenge.cycles = int(request.form.get('cycles', 0)) if request.form.get('cycles', 0) else 0
+        challenge.hold = int(request.form.get('hold', 0)) if request.form.get('hold', 0) else 0
         challenge.category = request.form['category']
         challenge.hidden = 'hidden' in request.form
         db.session.commit()
         db.session.close()
 
     @staticmethod
-    def read(challenge):
+    def read(challenge: HashCrackKingChallenge):
         """
         This method is in used to access the data of a challenge in a format processable by the front end.
 
@@ -156,9 +182,11 @@ class HashCrack(challenges.BaseChallenge):
             'id': challenge.id,
             'name': challenge.name,
             'value': challenge.value,
-            'description': challenge.description.replace('[HASH]', "[TODO The actual hash]"),
+            'description': challenge.description, #.replace('[HASH]', "[TODO The actual hash]"),
             'category': challenge.category,
             'hidden': challenge.hidden,
+            'cycles': challenge.cycles,
+            'hold': challenge.hold,
             'max_attempts': challenge.max_attempts,
             'type': challenge.type,
             'type_data': {
@@ -171,7 +199,7 @@ class HashCrack(challenges.BaseChallenge):
         return challenge, data
 
     @staticmethod
-    def delete(challenge):
+    def delete(challenge: HashCrackKingChallenge):
         """
         This method is used to delete the resources used by a challenge.
 
@@ -191,7 +219,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def attempt(chal, request):
+    def attempt(chal: HashCrackKingChallenge, request):
         """
         This method is used to check whether a given input is right or wrong. It does not make any changes and should
         return a boolean for correctness and a string to be shown to the user. It is also in charge of parsing the
@@ -245,26 +273,12 @@ class HashCrack(challenges.BaseChallenge):
         return False, 'Incorrect'
 
     @staticmethod
-    def solve(team, chal, request):
+    def solve(team, chal: HashCrackKingChallenge, request):
         """This method is not used"""
 
     @staticmethod
-    def fail(team, chal, request):
+    def fail(team, chal: HashCrackKingChallenge, request):
         """This method is not used"""
-
-
-class HashCrackKingChallenge(Challenges):
-    __mapper_args__ = {'polymorphic_identity': 'hash_crack_king'}
-    id = db.Column(None, db.ForeignKey('challenges.id'), primary_key=True)
-    initial = db.Column(db.Integer)
-
-    def __init__(self, name, description, value, category, type='hash_crack_king'):
-        self.name = name
-        self.description = description
-        self.value = value
-        self.initial = value
-        self.category = category
-        self.type = type
 
 
 def load(app):
