@@ -8,13 +8,13 @@ This plugin allows you to create king-of-the-hill style password cracking challe
 
     Clone CTFD-hash_crack_king  to  /CTFd/plugins/
 
-## Development Setup
+## Development
 
     $ git clone https://github.com/CTFd/CTFd.git
     $ cd CTFd/CTFd/plugins
     $ git clone https://github.com/jtylers/CTFd_hash_crack_king.git
     $ python3 ../../serve.py
-    Navigate to 127.0.0.1:8000
+    Navigate to 127.0.0.1:4000 in your browser
     
 
 #How to use
