@@ -52,6 +52,10 @@ def generate_key(key_length: int, character_set: str, word_list: List[str] or st
 
     # TODO translate the character set from a regex-like pattern to a set of characters
 
+    # If no character_set is defined then use a sane default
+    if not character_set:
+        character_set = "0"
+
     # Add characters to the string until it is the right size
     while len(key) < key_length:
         key += random.choice(character_set)
@@ -124,7 +128,7 @@ class HashCrack(challenges.BaseChallenge):
             # utils.upload_file(file=f, chalid=chal.id)
             pass
 
-        # TODO generate first key based on level
+        # TODO generate first key based on level or word lists before that is implemented
         key = generate_key(key_length=3, character_set="01", word_list=files)
 
         # Create challenge
@@ -231,7 +235,7 @@ class HashCrack(challenges.BaseChallenge):
                                             description=request.form['key'].strip()).first()
             chal.king = session['id']
             king_name = _team_name(chal.king)
-            # TODO generate new hash based on difficulty levels
+            # TODO generate new hash based on difficulty levels or word lists
             chal.current_hash = get_hash(generate_key(3, "01"))
 
             # Challenge not solved yet, give the team first capture points
@@ -244,7 +248,7 @@ class HashCrack(challenges.BaseChallenge):
                 logger.debug('First capture, {} points awarded.  "{}" will receive {} points every {} seconds"'.format(
                     chal.value, king_name, chal.hold, chal.cycles))
             logger.debug(
-                'Another capture", {}" is now King of the hill and will receive {} points every {} seconds'.format(
+                'Another capture, "{}" is now King of the hill and will receive {} points every {} seconds'.format(
                     king_name, chal.hold, chal.cycles))
             return True, 'Correct, "{}" is now king of the hill!'.format(king_name)
         return False, 'Incorrect, "{}" remains the king'.format(_team_name(chal.king))
