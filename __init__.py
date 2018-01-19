@@ -1,11 +1,9 @@
-from typing import List, Set
-
-from CTFd.plugins.keys import get_key_class
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from flask import session
-from CTFd.models import db, Challenges, WrongKeys, Keys, Awards, Solves, Files, Tags
+from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils
 from passlib.handlers.md5_crypt import md5_crypt
+from typing import List, Tuple
 
 import logging
 import random
@@ -13,14 +11,18 @@ import random
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-WORDS = ["TODO", "GET", "From", "Word", "lists"]
 
-
+# TODO Create thread pool that decreases a counter when the game isn't paussed
 # TODO if the CTF is paused, then hold timers should be paused
-# TODO have password length be a configurable consant?
-# TODO If that's the case then there should be other complexity parameters
-# TODO Maybe just strictly follow the wordlists in order and let the challenge writer come up with all that on their own
-# TODO Once the word lists are exhausted, generate random passwords
+# TODO in the challenge description, replace [KING] with the team name of the team in control of the hill
+
+def _team_name(session_id: int):
+    """Return the team name for the given team id"""
+    logger.debug("Getting team name for: {}".format(session_id))
+    try:
+        return Teams.query.filter_by(id=session_id).first().name
+    except Exception:
+        return None
 
 
 def generate_key(key_length: int, character_set: str, word_list: List[str] or str = None) -> str:
@@ -37,8 +39,11 @@ def generate_key(key_length: int, character_set: str, word_list: List[str] or st
         word_list = list()
     for f in word_list:
         # TODO parse all the challenge's files for the one matching this string
-        with open(f, "r") as word_file:
-            words.union(set(x for x in word_file.readline().split()))
+        try:
+            with open(f, "r") as word_file:
+                words.union(set(x for x in word_file.readline().split()))
+        except Exception:
+            logger.error("Unable to read file '{}'".format(f))
 
     # Choose a random word from the word lists
     if words:
@@ -51,6 +56,7 @@ def generate_key(key_length: int, character_set: str, word_list: List[str] or st
     while len(key) < key_length:
         key += random.choice(character_set)
 
+    logger.debug("Key is: '{}'".format(key))
     return key
 
 
@@ -70,7 +76,8 @@ class HashCrackKingChallenge(Challenges):
     current_hash = db.Column(db.String(80))
     king = db.Column(db.String(80))
 
-    def __init__(self, name, description, value, category, hold, cycles, type='hash_crack_king'):
+    def __init__(self, name, description, value, category, hold, cycles, type='hash_crack_king',
+                 current_hash: str = None):
         self.name = name
         self.description = description
         self.value = value
@@ -81,7 +88,7 @@ class HashCrackKingChallenge(Challenges):
         self.hold = hold
         self.cycles = cycles
         self.king = None
-        self.current_hash = None
+        self.current_hash = current_hash
 
 
 class HashCrack(challenges.BaseChallenge):
@@ -111,6 +118,15 @@ class HashCrack(challenges.BaseChallenge):
         :param request:
         :return:
         """
+        files = [str(x) for x in request.files.getlist('files[]')]
+        for f in files:
+            # TODO Add these files to the word_lists
+            # utils.upload_file(file=f, chalid=chal.id)
+            pass
+
+        # TODO generate first key based on level
+        key = generate_key(key_length=3, character_set="01", word_list=files)
+
         # Create challenge
         chal = HashCrackKingChallenge(
             name=request.form['name'],
@@ -119,11 +135,10 @@ class HashCrack(challenges.BaseChallenge):
             category=request.form['category'],
             type=request.form['chaltype'],
             hold=request.form['hold'],
-            cycles=request.form['cycles']
+            cycles=request.form['cycles'],
+            current_hash=get_hash(key)
         )
 
-        # self.cycles = int(request.form.get('cycles', 1)) if request.form.get('cycles', 1) else 1
-        # self.hold = int(request.form.get('cycles', 0)) if request.form.get('hold', 0) else 0
         if 'hidden' in request.form:
             chal.hidden = True
         else:
@@ -131,14 +146,6 @@ class HashCrack(challenges.BaseChallenge):
 
         db.session.add(chal)
         db.session.commit()
-
-        # TODO Generate a hash and the key, save the key as the only possible flag.
-
-        files = request.files.getlist('files[]')
-        for f in files:
-            # TODO Add these files to the word_lists
-            # utils.upload_file(file=f, chalid=chal.id)
-            pass
 
     @staticmethod
     def update(challenge: HashCrackKingChallenge, request):
@@ -157,8 +164,6 @@ class HashCrack(challenges.BaseChallenge):
         challenge.hold = int(request.form.get('hold', 0)) if request.form.get('hold', 0) else 0
         challenge.category = request.form['category']
         challenge.hidden = 'hidden' in request.form
-        db.session.commit()
-        db.session.close()
 
     @staticmethod
     def read(challenge: HashCrackKingChallenge):
@@ -198,7 +203,6 @@ class HashCrack(challenges.BaseChallenge):
         :return:
         """
         # Needs to remove awards data as well
-        WrongKeys.query.filter_by(chalid=challenge.id).delete()
         Solves.query.filter_by(chalid=challenge.id).delete()
         Keys.query.filter_by(chal=challenge.id).delete()
         files = Files.query.filter_by(chal=challenge.id).all()
@@ -210,7 +214,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def attempt(chal: HashCrackKingChallenge, request):
+    def attempt(chal: HashCrackKingChallenge, request) -> Tuple[bool, str]:
         """
         This method is used to check whether a given input is right or wrong. It does not make any changes and should
         return a boolean for correctness and a string to be shown to the user. It is also in charge of parsing the
@@ -221,47 +225,29 @@ class HashCrack(challenges.BaseChallenge):
         :return: (boolean, string)
         """
         provided_key = request.form['key'].strip()
-        chal_keys = Keys.query.filter_by(chal=chal.id).all()
-        for chal_key in chal_keys:
-            if get_key_class(chal_key.type).compare(chal_key.flag, provided_key):
-                if chal_key.type == "correct":
-                    solves = Awards.query.filter_by(teamid=session['id'], name=chal.id,
-                                                    description=request.form['key'].strip()).first()
-                    try:
-                        flag_value = solves.description
-                    except AttributeError:
-                        flag_value = ""
-                    # Challenge not solved yet
-                    if provided_key != flag_value or not solves:
-                        solve = Awards(teamid=session['id'], name=chal.id, value=chal.value)
-                        solve.description = provided_key
-                        db.session.add(solve)
-                        db.session.commit()
-                        db.session.close()
-                    return True, 'Correct'
-                    # TODO Add description function call to the end of "Correct" in return
-                elif chal_key.type == "wrong":
-                    solves = Awards.query.filter_by(teamid=session['id'], name=chal.id,
-                                                    description=request.form['key'].strip()).first()
-                    try:
-                        flag_value = solves.description
-                    except AttributeError:
-                        flag_value = ""
-                    # Challenge not solved yet
-                    if provided_key != flag_value or not solves:
-                        wrong_value = 0
-                        wrong_value -= chal.value
-                        wrong = WrongKeys(teamid=session['id'], chalid=chal.id, ip=utils.get_ip(request),
-                                          flag=provided_key)
-                        solve = Awards(teamid=session['id'], name=chal.id, value=wrong_value)
-                        solve.description = provided_key
-                        db.session.add(wrong)
-                        db.session.add(solve)
-                        db.session.commit()
-                        db.session.close()
-                    return False, 'Error'
-                    # TODO Add description function call to the end of "Error" in return
-        return False, 'Incorrect'
+        # Compare our hash with the hash of their provided key
+        if chal.current_hash == get_hash(provided_key):
+            solves = Awards.query.filter_by(teamid=session['id'], name=chal.id,
+                                            description=request.form['key'].strip()).first()
+            chal.king = session['id']
+            king_name = _team_name(chal.king)
+            # TODO generate new hash based on difficulty levels
+            chal.current_hash = get_hash(generate_key(3, "01"))
+
+            # Challenge not solved yet, give the team first capture points
+            if not solves:
+                solve = Awards(teamid=session['id'], name=chal.id, value=chal.value)
+                solve.description = provided_key
+                db.session.add(solve)
+                db.session.commit()
+                db.session.close()
+                logger.debug('First capture, {} points awarded.  "{}" will receive {} points every {} seconds"'.format(
+                    chal.value, king_name, chal.hold, chal.cycles))
+            logger.debug(
+                'Another capture", {}" is now King of the hill and will receive {} points every {} seconds'.format(
+                    king_name, chal.hold, chal.cycles))
+            return True, 'Correct, "{}" is now king of the hill!'.format(king_name)
+        return False, 'Incorrect, "{}" remains the king'.format(_team_name(chal.king))
 
     @staticmethod
     def solve(team, chal: HashCrackKingChallenge, request):
