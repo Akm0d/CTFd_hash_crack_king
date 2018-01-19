@@ -1,14 +1,14 @@
+from typing import List, Set
+
 from CTFd.plugins.keys import get_key_class
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from flask import session
 from CTFd.models import db, Challenges, WrongKeys, Keys, Awards, Solves, Files, Tags
 from CTFd import utils
 from passlib.handlers.md5_crypt import md5_crypt
-from six import unichr
 
 import logging
 import random
-import string
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -16,59 +16,48 @@ logger = logging.getLogger(__name__)
 WORDS = ["TODO", "GET", "From", "Word", "lists"]
 
 
-def generate_hash(difficulty: int, count: int):
+# TODO if the CTF is paused, then hold timers should be paused
+# TODO have password length be a configurable consant?
+# TODO If that's the case then there should be other complexity parameters
+# TODO Maybe just strictly follow the wordlists in order and let the challenge writer come up with all that on their own
+# TODO Once the word lists are exhausted, generate random passwords
+
+
+def generate_key(key_length: int, character_set: str, word_list: List[str] or str = None) -> str:
     # TODO Have a settings page where these parameters can be modified by an admin
-    password = ""
-    # The difficulty increases by the count value
-    # increase length and dictionary following with difficulty
-    if difficulty < (1 + count * 0):
-        password = random.choice(WORDS)
-    elif difficulty < (1 + count * 1):
-        password = random.choice(WORDS)
-        password += str(random.randint(10000, 20000))
-        password = password[:8]
-    elif difficulty < (1 + count * 2):
-        chars = string.digits
-        password = ''.join(random.choice(chars) for _ in range(8))
-    elif difficulty < (1 + count * 3):
-        chars = string.ascii_uppercase
-        password = ''.join(random.choice(chars) for _ in range(8))
-    elif difficulty < (1 + count * 4):
-        chars = string.ascii_uppercase + string.digits
-        password = ''.join(random.choice(chars) for _ in range(8))
-    elif difficulty < (1 + count * 5):
-        chars = string.ascii_uppercase + string.digits + string.ascii_uppercase.lower()
-        password = ''.join(random.choice(chars) for _ in range(8))
-    elif difficulty < (1 + count * 6):
-        chars = string.ascii_uppercase + string.digits + string.ascii_uppercase.lower() \
-                + "`~!@#$%^&*()_+=-\|]}[{'\";:.>,</?"
-        password = ''.join(random.choice(chars) for _ in range(8))
-    elif difficulty < (1 + count * 7):
-        chars = string.ascii_uppercase + string.digits + string.ascii_uppercase.lower() \
-                + "`~!@#$%^&*()_+=-\|]}[{'\";:.>,</?"
-        password = ''.join(random.choice(chars) for _ in range(10))
-    elif difficulty < (1 + count * 8):
-        chars = ""
-        for i in range(0, 0x7F):
-            chars += str(unichr(i))
-        password = ''.join(random.choice(chars) for _ in range(10))
-    elif difficulty < (1 + count * 9):
-        chars = ""
-        for i in range(0, 0x7F):
-            chars += str(unichr(i))
-        password = ''.join(random.choice(chars) for _ in range(10))
-    else:
-        chars = ""
-        for i in range(0, 0x7F):
-            chars += str(unichr(i))
-        password = ''.join(random.choice(chars) for _ in range(16))
-    # Don't allow a password longer than 8 characters
-    pass_hash = md5_crypt.encrypt(password, salt="salty")
+    key = ""
+    words = set()
+
     # passwd.write(user + ':x:' + str(uid) + ':1000:Test User,,,:/home:/usr/bin/zsh\n')
+
+    # Parse the word lists
+    if isinstance(word_list, str):
+        word_list = [word_list]
+    if not word_list:
+        word_list = list()
+    for f in word_list:
+        # TODO parse all the challenge's files for the one matching this string
+        with open(f, "r") as word_file:
+            words.union(set(x for x in word_file.readline().split()))
+
+    # Choose a random word from the word lists
+    if words:
+        key = random.choice(words)[:key_length]
+    # TODO have a substitution table to translate e's to 3's and such?
+
+    # TODO translate the character set from a regex-like pattern to a set of characters
+
+    # Add characters to the string until it is the right size
+    while len(key) < key_length:
+        key += random.choice(character_set)
+
+    return key
+
+
+def get_hash(key: str, salt: str = 'salt') -> str:
+    """Return a unix shadow-like password hash"""
     # shadow.write(user + ':' + pass_hash + ':17080:0:99999:7:::\n')
-    logger.debug("Hash: {}".format(pass_hash))
-    logger.debug("Pass: {}".format(password))
-    return pass_hash, password
+    return md5_crypt.encrypt(key, salt=salt)
 
 
 class HashCrackKingChallenge(Challenges):
@@ -143,6 +132,8 @@ class HashCrack(challenges.BaseChallenge):
         db.session.add(chal)
         db.session.commit()
 
+        # TODO Generate a hash and the key, save the key as the only possible flag.
+
         files = request.files.getlist('files[]')
         for f in files:
             # TODO Add these files to the word_lists
@@ -182,7 +173,7 @@ class HashCrack(challenges.BaseChallenge):
             'id': challenge.id,
             'name': challenge.name,
             'value': challenge.value,
-            'description': challenge.description, #.replace('[HASH]', "[TODO The actual hash]"),
+            'description': challenge.description,  # .replace('[HASH]', "[TODO The actual hash]"),
             'category': challenge.category,
             'hidden': challenge.hidden,
             'cycles': challenge.cycles,
