@@ -2,8 +2,12 @@ from CTFd.plugins import challenges, register_plugin_assets_directory
 from flask import session
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils
+from flask_apscheduler import APScheduler
 from passlib.handlers.md5_crypt import md5_crypt
-from typing import List, Tuple
+from threading import Thread
+from time import sleep
+from typing import List, Tuple, Any, Dict
+from werkzeug.local import LocalProxy
 
 import logging
 import random
@@ -80,8 +84,18 @@ class HashCrackKingChallenge(Challenges):
     current_hash = db.Column(db.String(80))
     king = db.Column(db.String(80))
 
-    def __init__(self, name, description, value, category, hold, cycles, type='hash_crack_king',
-                 current_hash: str = None):
+    def __init__(self, name: str, description: str, value: int, category: str, hold: int, cycles: int,
+                 type: str = 'hash_crack_king', current_hash: str = None):
+        """
+        :param name:
+        :param description:
+        :param value:
+        :param category:
+        :param hold: The number of points awarded for holding the base
+        :param cycles: The number of seconds per king-of-the hill cycle
+        :param type:
+        :param current_hash:
+        """
         self.name = name
         self.description = description
         self.value = value
@@ -115,7 +129,7 @@ class HashCrack(challenges.BaseChallenge):
     }
 
     @staticmethod
-    def create(request):
+    def create(request: LocalProxy):
         """
         This method is used to process the challenge creation request.
 
@@ -152,7 +166,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def update(challenge: HashCrackKingChallenge, request):
+    def update(challenge: HashCrackKingChallenge, request: LocalProxy):
         """
         This method is used to update the information associated with a challenge. This should be kept strictly to the
         Challenges table and any child tables.
@@ -170,7 +184,7 @@ class HashCrack(challenges.BaseChallenge):
         challenge.hidden = 'hidden' in request.form
 
     @staticmethod
-    def read(challenge: HashCrackKingChallenge):
+    def read(challenge: HashCrackKingChallenge) -> Tuple[HashCrackKingChallenge, Dict[str, Any]]:
         """
         This method is in used to access the data of a challenge in a format processable by the front end.
 
@@ -218,7 +232,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def attempt(chal: HashCrackKingChallenge, request) -> Tuple[bool, str]:
+    def attempt(chal: HashCrackKingChallenge, request: LocalProxy) -> Tuple[bool, str]:
         """
         This method is used to check whether a given input is right or wrong. It does not make any changes and should
         return a boolean for correctness and a string to be shown to the user. It is also in charge of parsing the
@@ -254,12 +268,28 @@ class HashCrack(challenges.BaseChallenge):
         return False, 'Incorrect, "{}" remains the king'.format(_team_name(chal.king))
 
     @staticmethod
-    def solve(team, chal: HashCrackKingChallenge, request):
+    def solve(team, chal: HashCrackKingChallenge, request: LocalProxy):
         """This method is not used"""
 
     @staticmethod
-    def fail(team, chal: HashCrackKingChallenge, request):
+    def fail(team, chal: HashCrackKingChallenge, request: LocalProxy):
         """This method is not used"""
+
+
+def poll_kings():
+    """
+    Iterate over each of the hash-cracking challenges and give hold points to each king when the hold counter is zero
+    """
+    logger.debug("Starting poll_king thread")
+    while True:
+        if db.app is None:
+            logger.debug("No application context")
+            sleep(5)
+        else:
+            with db.app.app_context():
+                chals = Challenges.query.all()
+                print(chals)
+                sleep(1)
 
 
 def load(app):
@@ -267,3 +297,6 @@ def load(app):
     app.db.create_all()
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
+
+    # FIXME Threads don't have the application context, we need to find a way to poll challenges in a thread
+    Thread(target=poll_kings).start()
