@@ -1,7 +1,7 @@
 from CTFd.plugins import challenges, register_plugin_assets_directory
-from flask import session
+from flask import session, current_app
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
-from CTFd import utils
+from CTFd import utils, CTFdFlask
 from flask_apscheduler import APScheduler
 from passlib.handlers.md5_crypt import md5_crypt
 from threading import Thread
@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 def _team_name(session_id: int):
     """Return the team name for the given team id"""
-    logger.debug("Getting team name for: {}".format(session_id))
     try:
         return Teams.query.filter_by(id=session_id).first().name
     except Exception:
@@ -82,7 +81,7 @@ class HashCrackKingChallenge(Challenges):
     hold = db.Column(db.Integer)
     cycles = db.Column(db.Integer)
     current_hash = db.Column(db.String(80))
-    king = db.Column(db.String(80))
+    king = db.Column(db.Integer)
 
     def __init__(self, name: str, description: str, value: int, category: str, hold: int, cycles: int,
                  type: str = 'hash_crack_king', current_hash: str = None):
@@ -92,7 +91,7 @@ class HashCrackKingChallenge(Challenges):
         :param value:
         :param category:
         :param hold: The number of points awarded for holding the base
-        :param cycles: The number of seconds per king-of-the hill cycle
+        :param cycles: The number of minutes per king-of-the hill cycle
         :param type:
         :param current_hash:
         """
@@ -258,13 +257,14 @@ class HashCrack(challenges.BaseChallenge):
                 solve.description = provided_key
                 db.session.add(solve)
                 db.session.commit()
-                db.session.close()
-                logger.debug('First capture, {} points awarded.  "{}" will receive {} points every {} seconds"'.format(
+                logger.debug('First capture, {} points awarded.  "{}" will receive {} points every {} minutes"'.format(
                     chal.value, king_name, chal.hold, chal.cycles))
             logger.debug(
-                'Another capture, "{}" is now King of the hill and will receive {} points every {} seconds'.format(
+                'Another capture, "{}" is now King of the hill and will receive {} points every {} minutes'.format(
                     king_name, chal.hold, chal.cycles))
+            db.session.close()
             return True, 'Correct, "{}" is now king of the hill!'.format(king_name)
+        db.session.close()
         return False, 'Incorrect, "{}" remains the king'.format(_team_name(chal.king))
 
     @staticmethod
@@ -276,27 +276,49 @@ class HashCrack(challenges.BaseChallenge):
         """This method is not used"""
 
 
-def poll_kings():
+timers = dict()
+
+
+def poll_kings(app: CTFdFlask):
     """
     Iterate over each of the hash-cracking challenges and give hold points to each king when the hold counter is zero
     """
-    logger.debug("Starting poll_king thread")
+    logger.debug("Started king of the hill polling thread")
     while True:
-        if db.app is None:
-            logger.debug("No application context")
-            sleep(5)
-        else:
-            with db.app.app_context():
-                chals = Challenges.query.all()
-                print(chals)
-                sleep(1)
+        with app.app_context():
+            chals = Challenges.query.filter_by(type="hash_crack_king").all()
+            for c in chals:
+                assert isinstance(c, HashCrackKingChallenge)
+                # TODO If game isn't paused
+                if timers.get(c.id, None) is None:
+                    logger.debug("Initializing timer for '{}'".format(c.name))
+                    timers[c.id] = 0
+                elif timers[c.id] < 20: #c.cycles:
+                    logger.debug("Incrementing timer for '{}'".format(c.name))
+                    timers[c.id] += 1
+                else:
+                    # Reset Timer
+                    logger.debug("Resetting timer for '{}'".format(c.name))
+                    timers[c.id] = 0
+
+                    # Timer has maxed out, give points to the king
+                    logger.debug("Giving points to team '{}' for being king of '{}.".format(_team_name(c.king), c.name))
+                    solve = Awards(teamid=c.king, name=c.id, value=c.hold)
+                    solve.description = "Team '{}' is king of '{}'".format(_team_name(c.king), c.name)
+                    db.session.add(solve)
+
+                    db.session.commit()
+                    db.session.expunge_all()
+                logger.debug("Timer is at '{}'".format(timers[c.id]))
+        # Wait for the next cycle
+        sleep(5)
 
 
-def load(app):
+def load(app: CTFdFlask):
     """load overrides for hash_crack_king plugin to work properly"""
     app.db.create_all()
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
-    # FIXME Threads don't have the application context, we need to find a way to poll challenges in a thread
-    Thread(target=poll_kings).start()
+    # TODO Only allow a single instance of this
+    Thread(target=poll_kings, args=[app]).start()

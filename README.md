@@ -1,6 +1,6 @@
 # Hash Crack King plugin
 
-This plugin allows you to create king-of-the-hill style password cracking challenges.  Teams are awarded "capture points" the first time they take control of "the hill".  They are awarded "hold points" every n seconds they maintain control of the hill.  
+This plugin allows you to create king-of-the-hill style password cracking challenges.  Teams are awarded "capture points" the first time they take control of "the hill".  They are awarded "hold points" every n minutes they maintain control of the hill.  
 
 
 
@@ -25,7 +25,7 @@ This plugin allows you to create king-of-the-hill style password cracking challe
 - Set the parameters for your challenge.
   - Capture value - The number of points awarded the first time a team takes control of the hill
   - Hold value - The number of points awarded every cycle to the team in control of the hill
-  - Seconds per Cycle - The number of seconds in a cycle
+  - Minutes per Cycle - The number of minutes in a cycle
   - Upload word lists.  These will not be visible to contestants, but will be used to generate keys and hashes.
   
 # TODO
