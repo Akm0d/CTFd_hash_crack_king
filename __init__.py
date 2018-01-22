@@ -1,8 +1,7 @@
 from CTFd.plugins import challenges, register_plugin_assets_directory
-from flask import session, current_app
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils, CTFdFlask
-from flask_apscheduler import APScheduler
+from flask import session
 from passlib.handlers.md5_crypt import md5_crypt
 from threading import Thread
 from time import sleep
@@ -16,9 +15,9 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-# TODO Create thread pool that decreases a counter when the game isn't paussed
-# TODO if the CTF is paused, then hold timers should be paused
-# TODO in the challenge description, replace [KING] with the team name of the team in control of the hill
+# TODO The following probably needs to happen in an AJAX or Javascript file.  Don't do a permanent change in storage:
+# - in the challenge description, replace [KING] with the team name of the team in control of the hill
+# - in the challenge description, replace [HASH] with the current hash
 
 def _team_name(session_id: int):
     """Return the team name for the given team id"""
@@ -248,7 +247,7 @@ class HashCrack(challenges.BaseChallenge):
                                             description=request.form['key'].strip()).first()
             chal.king = session['id']
             king_name = _team_name(chal.king)
-            # TODO generate new hash based on difficulty levels or word lists
+            # TODO generate new hash based on difficulty levels and word lists
             chal.current_hash = get_hash(generate_key(3, "01"))
 
             # Challenge not solved yet, give the team first capture points
@@ -276,40 +275,42 @@ class HashCrack(challenges.BaseChallenge):
         """This method is not used"""
 
 
-timers = dict()
-
-
 def poll_kings(app: CTFdFlask):
     """
     Iterate over each of the hash-cracking challenges and give hold points to each king when the hold counter is zero
     """
     logger.debug("Started king of the hill polling thread")
+    timers = dict()
     while True:
+        # TODO If the game is restarted then reset the king to "None"
         with app.app_context():
-            chals = Challenges.query.filter_by(type="hash_crack_king").all()
-            for c in chals:
-                assert isinstance(c, HashCrackKingChallenge)
-                # TODO If game isn't paused
-                if timers.get(c.id, None) is None:
-                    logger.debug("Initializing timer for '{}'".format(c.name))
-                    timers[c.id] = 0
-                elif timers[c.id] < 20: #c.cycles:
-                    logger.debug("Incrementing timer for '{}'".format(c.name))
-                    timers[c.id] += 1
-                else:
-                    # Reset Timer
-                    logger.debug("Resetting timer for '{}'".format(c.name))
-                    timers[c.id] = 0
+            if not utils.get_config('paused'):
+                chals = Challenges.query.filter_by(type="hash_crack_king").all()
+                for c in chals:
+                    assert isinstance(c, HashCrackKingChallenge)
+                    if timers.get(c.id, None) is None:
+                        logger.debug("Initializing timer for '{}'".format(c.name))
+                        timers[c.id] = 0
+                    elif timers[c.id] < 20:  # c.cycles:
+                        logger.debug("Incrementing timer for '{}'".format(c.name))
+                        timers[c.id] += 1
+                    else:
+                        # Reset Timer
+                        logger.debug("Resetting timer for '{}'".format(c.name))
+                        timers[c.id] = 0
 
-                    # Timer has maxed out, give points to the king
-                    logger.debug("Giving points to team '{}' for being king of '{}.".format(_team_name(c.king), c.name))
-                    solve = Awards(teamid=c.king, name=c.id, value=c.hold)
-                    solve.description = "Team '{}' is king of '{}'".format(_team_name(c.king), c.name)
-                    db.session.add(solve)
+                        # Timer has maxed out, give points to the king
+                        logger.debug(
+                            "Giving points to team '{}' for being king of '{}.".format(_team_name(c.king), c.name))
+                        solve = Awards(teamid=c.king, name=c.id, value=c.hold)
+                        solve.description = "Team '{}' is king of '{}'".format(_team_name(c.king), c.name)
+                        db.session.add(solve)
 
-                    db.session.commit()
-                    db.session.expunge_all()
-                logger.debug("Timer is at '{}'".format(timers[c.id]))
+                        db.session.commit()
+                        db.session.expunge_all()
+                    logger.debug("Timer is at '{}'".format(timers[c.id]))
+            else:
+                logger.debug("Game is paused")
         # Wait for the next cycle
         sleep(5)
 
@@ -320,5 +321,6 @@ def load(app: CTFdFlask):
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
-    # TODO Only allow a single instance of this
+    # FIXME Only allow a single instance of this.
+    # - When werkzeug Restarts with stat, it spawns a second instance of this thread
     Thread(target=poll_kings, args=[app]).start()
