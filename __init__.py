@@ -282,33 +282,41 @@ def poll_kings(app: CTFdFlask):
     logger.debug("Started king of the hill polling thread")
     timers = dict()
     while True:
-        # TODO If the game is restarted then reset the king to "None"
         with app.app_context():
+            # TODO Verify that points are not awarded when the game is paused
             if not utils.get_config('paused'):
                 chals = Challenges.query.filter_by(type="hash_crack_king").all()
                 for c in chals:
+                    chal_name = c.name
+                    chal_id = c.id
                     assert isinstance(c, HashCrackKingChallenge)
-                    if timers.get(c.id, None) is None:
-                        logger.debug("Initializing timer for '{}'".format(c.name))
-                        timers[c.id] = 0
-                    elif timers[c.id] < 20:  # c.cycles:
-                        logger.debug("Incrementing timer for '{}'".format(c.name))
-                        timers[c.id] += 1
+                    if c.king is None:
+                        logger.debug("There is no king for '{}'".format(chal_name))
+                    # If the game is restarted then reset the king to "None"
+                    elif not Awards.query.filter_by(teamid=c.king, name=chal_id).first():
+                        logger.debug("Resetting the '{}' king".format(chal_name))
+                        c.king = None
+                    elif timers.get(chal_id, None) is None:
+                        logger.debug("Initializing '{}' timer".format(chal_name))
+                        timers[chal_id] = 0
+                    elif timers[chal_id] < c.cycles:
+                        logger.debug("Incrementing '{}' timer'".format(chal_name))
+                        timers[chal_id] += 1
                     else:
                         # Reset Timer
-                        logger.debug("Resetting timer for '{}'".format(c.name))
-                        timers[c.id] = 0
+                        logger.debug("Resetting '{}' timer".format(chal_name))
+                        timers[chal_id] = 0
 
                         # Timer has maxed out, give points to the king
                         logger.debug(
-                            "Giving points to team '{}' for being king of '{}.".format(_team_name(c.king), c.name))
-                        solve = Awards(teamid=c.king, name=c.id, value=c.hold)
-                        solve.description = "Team '{}' is king of '{}'".format(_team_name(c.king), c.name)
+                            "Giving points to team '{}' for being king of '{}.".format(_team_name(c.king), chal_name))
+                        solve = Awards(teamid=c.king, name=chal_id, value=c.hold)
+                        solve.description = "Team '{}' is king of '{}'".format(_team_name(c.king), chal_name)
                         db.session.add(solve)
 
                         db.session.commit()
                         db.session.expunge_all()
-                    logger.debug("Timer is at '{}'".format(timers[c.id]))
+                    logger.debug("'{}' timer is at '{}'".format(chal_name, timers.get(chal_id, 0)))
             else:
                 logger.debug("Game is paused")
         # Wait for the next cycle
@@ -321,6 +329,6 @@ def load(app: CTFdFlask):
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
-    # FIXME Only allow a single instance of this.
+    # FIXME Only allow a single instance of this Thread
     # - When werkzeug Restarts with stat, it spawns a second instance of this thread
     Thread(target=poll_kings, args=[app]).start()
