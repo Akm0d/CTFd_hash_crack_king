@@ -23,7 +23,7 @@ $(".input-field").bind({
         }
     }
 });
-var content = $('.chal-desc').text();
+var content = $('.chal-desc').text().replace("[KING]", "TODO: King").replace("[HASH]", "TODO : Hash");
 var decoded = $('<textarea/>').html(content).val()
 
 $('.chal-desc').html(marked(content, {'gfm':true, 'breaks':true}));

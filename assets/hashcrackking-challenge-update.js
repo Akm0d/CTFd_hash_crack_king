@@ -53,6 +53,8 @@ function loadchal(id, update) {
         $('.chal-desc-editor').val(obj.description);
         $('.chal-value').val(obj.value);
         $('.chal-hold').val(obj.hold);
+        $('.chal-hash').val(obj.hash);
+        $('.chal-king').val(obj.king);
         $('.chal-cycles').val(obj.cycles);
         $('.chal-category').val(obj.category);
         $('.chal-id').val(obj.id);

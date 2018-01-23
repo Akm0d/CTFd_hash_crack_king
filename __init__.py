@@ -196,7 +196,9 @@ class HashCrack(challenges.BaseChallenge):
             'id': challenge.id,
             'name': challenge.name,
             'value': challenge.value,
-            'description': challenge.description,  # .replace('[HASH]', "[TODO The actual hash]"),
+            'description': challenge.description,
+            'hash': challenge.current_hash,
+            'king': challenge.king,
             'category': challenge.category,
             'hidden': challenge.hidden,
             'cycles': challenge.cycles,
@@ -322,7 +324,7 @@ def poll_kings(app: CTFdFlask):
             else:
                 logger.debug("Game is paused")
         # Wait for the next cycle
-        sleep(5)
+        sleep(60)
 
 
 def load(app: CTFdFlask):
