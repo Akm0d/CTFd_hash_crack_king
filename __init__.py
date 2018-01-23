@@ -180,6 +180,8 @@ class HashCrack(challenges.BaseChallenge):
         challenge.hold = int(request.form.get('hold', 0)) if request.form.get('hold', 0) else 0
         challenge.category = request.form['category']
         challenge.hidden = 'hidden' in request.form
+        db.session.commit()
+        db.session.close()
 
     @staticmethod
     def read(challenge: HashCrackKingChallenge) -> Tuple[HashCrackKingChallenge, Dict[str, Any]]:
