@@ -5,7 +5,7 @@ $('#submit-key').click(function (e) {
 });
 
 $("#answer-input").keyup(function(event){
-    if(event.keyCode == 13){
+    if(event.keyCode === 13){
         $("#submit-key").click();
     }
 });
@@ -23,7 +23,8 @@ $(".input-field").bind({
         }
     }
 });
+
 var content = $('.chal-desc').text().replace("[KING]", "TODO: King").replace("[HASH]", "TODO : Hash");
-var decoded = $('<textarea/>').html(content).val()
+var decoded = $('<textarea/>').html(content).val();
 
 $('.chal-desc').html(marked(content, {'gfm':true, 'breaks':true}));
