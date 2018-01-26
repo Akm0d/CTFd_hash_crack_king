@@ -1,24 +1,24 @@
 # Hash Crack King plugin
-
 This plugin allows you to create king-of-the-hill style password cracking challenges.  Teams are awarded "capture points" the first time they take control of "the hill".  They are awarded "hold points" every n minutes they maintain control of the hill.  
 
 
 
-#Setup
-
+# Setup
     Clone CTFD-hash_crack_king  to  /CTFd/plugins/
 
 ## Development
-
-    $ git clone https://github.com/CTFd/CTFd.git
-    $ cd CTFd/CTFd/plugins
-    $ git clone https://github.com/jtylers/CTFd_hash_crack_king.git
-    $ python3 ../../serve.py
-    Navigate to 127.0.0.1:4000 in your browser
+```bash
+$ git clone https://github.com/CTFd/CTFd.git
+$ cd CTFd
+$ ./prepare.sh
+$ cd CTFd/plugins
+$ git clone https://github.com/jtylers/CTFd_hash_crack_king.git
+$ python3 ../../serve.py
+$ xdg-open 127.0.0.1:4000
+```
     
 
-#How to use
-
+# How to use
 - As an admin, go to "challenges" 
 - Create a challenge 
 - from the drop down select "hash_crack_king"
@@ -29,7 +29,7 @@ This plugin allows you to create king-of-the-hill style password cracking challe
   - Upload word lists.  These will not be visible to contestants, but will be used to generate keys and hashes.
   
 # TODO
-
+- 
 - Add complexity levels pressing the '+'
 - word list - the name of the word list to use for this difficulty level.  If none is given, or if an unreadable file is given, keys will be generated from the other complexity settings
 - key length - a fixed length for each key.  If a word from the word list is too short (or if there is no word list), random data from complexity level character set will be added.
@@ -41,6 +41,5 @@ This plugin allows you to create king-of-the-hill style password cracking challe
     - !@#$%^&* Any other characters special characters to add
     - [u100-256] Include characters 100 to 256 from unicode
   
-#Questions
-
+# Questions
 If you have any questions please contact Akmod (tyler@utos.org)
