@@ -13,7 +13,7 @@ from werkzeug.local import LocalProxy
 
 import logging
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -58,14 +58,16 @@ class HashCrackKingChallenge(Challenges):
     cycles = db.Column(db.Integer)
     current_hash = db.Column(db.String(80))
     king = db.Column(db.Integer)
+    regex = db.Column(db.String(160))
 
-    def __init__(self, name: str, description: str, value: int, category: str, hold: int, cycles: int,
-                 type: str = 'hash_crack_king', current_hash: str = None):
+    def __init__(self, name: str, description: str, value: int, category: str, hold: int,
+                 cycles: int, regex: str, type: str = 'hash_crack_king', current_hash: str = None):
         """
         :param name:
         :param description:
         :param value:
         :param category:
+        :type regex: A Regular expression or file name
         :param hold: The number of points awarded for holding the base
         :param cycles: The number of minutes per king-of-the hill cycle
         :param type:
@@ -82,6 +84,7 @@ class HashCrackKingChallenge(Challenges):
         self.cycles = cycles
         self.king = None
         self.current_hash = current_hash
+        self.regex = regex
 
 
 class HashCrack(challenges.BaseChallenge):
@@ -118,17 +121,20 @@ class HashCrack(challenges.BaseChallenge):
             pass
 
         # TODO generate first key based on level or word lists before that is implemented
-        key = generate_key("[a-zA-Z]{8}")
-        print(key)
+        regex = request.form['regex']
+        key = generate_key(regex)
+        name = request.form['name']
+        logger.debug("Generated key '{}' for challenge '{}'".format(key, name))
 
         # Create challenge
         chal = HashCrackKingChallenge(
-            name=request.form['name'],
+            name=name,
             description=request.form['description'],
             value=request.form['value'],
             category=request.form['category'],
             type=request.form['chaltype'],
             hold=request.form['hold'],
+            regex=regex,
             cycles=request.form['cycles'],
             current_hash=get_hash(key)
         )
@@ -151,6 +157,11 @@ class HashCrack(challenges.BaseChallenge):
         :param request:
         :return:
         """
+        if challenge.regex != request.form['regex']:
+            challenge.regex = request.form['regex']
+            key = generate_key(request.form['regex'])
+            logger.debug("Generated key '{}' for challenge '{}'".format(key, challenge.name))
+            challenge.current_hash = get_hash(key)
         challenge.name = request.form['name']
         challenge.description = request.form['description']
         challenge.value = int(request.form.get('value', 0)) if request.form.get('value', 0) else 0
@@ -180,6 +191,7 @@ class HashCrack(challenges.BaseChallenge):
             'category': challenge.category,
             'hidden': challenge.hidden,
             'cycles': challenge.cycles,
+            'regex': challenge.regex,
             'hold': challenge.hold,
             'max_attempts': challenge.max_attempts,
             'type': challenge.type,
@@ -230,7 +242,7 @@ class HashCrack(challenges.BaseChallenge):
             chal.king = session['id']
             king_name = _team_name(chal.king)
             # TODO generate new hash based on difficulty levels and word lists
-            chal.current_hash = get_hash(generate_key("[a-zA-Z0-9]{8}"))
+            chal.current_hash = get_hash(generate_key(chal.regex))
 
             # Challenge not solved yet, give the team first capture points
             if not solves:
@@ -307,7 +319,8 @@ def poll_kings(app: CTFdFlask):
 
                             # Timer has maxed out, give points to the king
                             logger.debug(
-                                "Giving points to team '{}' for being king of '{}'.".format(_team_name(chal_king), chal_name))
+                                "Giving points to team '{}' for being king of '{}'.".format(_team_name(chal_king),
+                                                                                            chal_name))
                             solve = Awards(teamid=chal_king, name=chal_id, value=chal_hold)
                             solve.description = "Team '{}' is king of '{}'".format(_team_name(chal_king), chal_name)
                             db.session.add(solve)
@@ -330,4 +343,3 @@ def load(app: CTFdFlask):
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
     Thread(target=poll_kings, args=[app]).start()
-
