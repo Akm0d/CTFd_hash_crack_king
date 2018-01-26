@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # TODO The following probably needs to happen in an AJAX or Javascript file.  Don't do a permanent change in storage:
 # - in the challenge description, replace [KING] with the team name of the team in control of the hill
 # - in the challenge description, replace [HASH] with the current hash
+# TODO give a useful error message if an invalid regular expression is provided to create or update
 
 def _team_name(session_id: int):
     """Return the team name for the given team id"""
@@ -84,6 +85,7 @@ class HashCrackKingChallenge(Challenges):
         self.cycles = cycles
         self.king = None
         self.current_hash = current_hash
+        # TODO use exrex to simplify the regular expression
         self.regex = regex
 
 
@@ -122,6 +124,7 @@ class HashCrack(challenges.BaseChallenge):
 
         # TODO generate first key based on level or word lists before that is implemented
         regex = request.form['regex']
+        # TODO use exrex to simply the regex
         key = generate_key(regex)
         name = request.form['name']
         logger.debug("Generated key '{}' for challenge '{}'".format(key, name))
