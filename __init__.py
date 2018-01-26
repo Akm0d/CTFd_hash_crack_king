@@ -1,7 +1,7 @@
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils, CTFdFlask
-from exrex import getone as regex2str
+from exrex import getone as regex2str, simplify
 from flask import session
 from os import getpid
 from passlib.handlers.md5_crypt import md5_crypt
@@ -13,7 +13,7 @@ from werkzeug.local import LocalProxy
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +40,7 @@ def generate_key(regex_or_file: str) -> str:
         with open(regex_or_file) as word_file:
             # Choose a random word from the word lists
             return random({x for x in word_file.readlines()})
-    except Exception:
+    except FileNotFoundError:
         return regex2str(regex_or_file)
 
 
@@ -85,7 +85,6 @@ class HashCrackKingChallenge(Challenges):
         self.cycles = cycles
         self.king = None
         self.current_hash = current_hash
-        # TODO use exrex to simplify the regular expression
         self.regex = regex
 
 
@@ -123,8 +122,7 @@ class HashCrack(challenges.BaseChallenge):
             pass
 
         # TODO generate first key based on level or word lists before that is implemented
-        regex = request.form['regex']
-        # TODO use exrex to simply the regex
+        regex = simplify(request.form['regex'])
         key = generate_key(regex)
         name = request.form['name']
         logger.debug("Generated key '{}' for challenge '{}'".format(key, name))
@@ -160,9 +158,10 @@ class HashCrack(challenges.BaseChallenge):
         :param request:
         :return:
         """
-        if challenge.regex != request.form['regex']:
-            challenge.regex = request.form['regex']
-            key = generate_key(request.form['regex'])
+        regex = simplify(request.form['regex'])
+        if challenge.regex != regex:
+            challenge.regex = regex
+            key = generate_key(regex)
             logger.debug("Generated key '{}' for challenge '{}'".format(key, challenge.name))
             challenge.current_hash = get_hash(key)
         challenge.name = request.form['name']
@@ -244,7 +243,7 @@ class HashCrack(challenges.BaseChallenge):
                                             description=request.form['key'].strip()).first()
             chal.king = session['id']
             king_name = _team_name(chal.king)
-            # TODO generate new hash based on difficulty levels and word lists
+            # TODO check if it is time to advance to the next difficulty level/regex
             chal.current_hash = get_hash(generate_key(chal.regex))
 
             # Challenge not solved yet, give the team first capture points
@@ -291,7 +290,6 @@ def poll_kings(app: CTFdFlask):
         with open(pid_file, 'r+') as FILE:
             pid = int(FILE.readline())
         with app.app_context():
-            # TODO Verify that points are not awarded when the game is paused
             if not utils.get_config('paused'):
                 chals = Challenges.query.filter_by(type="hash_crack_king").all()
                 for c in chals:
@@ -312,10 +310,11 @@ def poll_kings(app: CTFdFlask):
                         logger.debug("Initializing '{}' timer".format(chal_name))
                         timers[chal_id] = 0
                     else:
+                        assert isinstance(chal_king, int)
                         if timers[chal_id] < chal_cycles:
                             logger.debug("Incrementing '{}' timer'".format(chal_name))
                             timers[chal_id] += 1
-                        else:
+                        if timers[chal_id] == chal_cycles:
                             # Reset Timer
                             logger.debug("Resetting '{}' timer".format(chal_name))
                             timers[chal_id] = 0
