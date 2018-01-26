@@ -28,20 +28,17 @@ $ xdg-open 127.0.0.1:4000
   - Capture value - The number of points awarded the first time a team takes control of the hill
   - Hold value - The number of points awarded every cycle to the team in control of the hill
   - Minutes per Cycle - The number of minutes in a cycle
+  - Key Generation Data - The name of a file uploaded to the challenge or a regular expression
+    - If a file name is given, then a key will be randomly selected from the file
+    - If a regular expression is given, then a key will be randomly generated that matches the regular expression
   - Upload word lists.  These will not be visible to contestants, but will be used to generate keys and hashes.
   
 # TODO
-- 
-- Add complexity levels pressing the '+'
-- word list - the name of the word list to use for this difficulty level.  If none is given, or if an unreadable file is given, keys will be generated from the other complexity settings
-- key length - a fixed length for each key.  If a word from the word list is too short (or if there is no word list), random data from complexity level character set will be added.
-- solves to advance - The number of solves before advancing to the next complexity level.  Once at the final level, stay there.
-- character set - The characters allowed to be used in a generated key.
-    - [a-z] will include all lower case letters in the english alphabet
-    - [a-Z] will include all letters in the english alphabet
-    - [0-9] will include all numbers
-    - !@#$%^&* Any other characters special characters to add
-    - [u100-256] Include characters 100 to 256 from unicode
+- Add complexity levels pressing a '+'
+  - Each complexity level has the number of solves before advancing to the next complexity level and it's own "key generation data" line that is the same as described previously
+  - Add the ability to rearrange complexity levels
+- Replace [KING] and [HASH] with the appropriate values in the challenge description(modal) using javascript
+- Select a word from a given word list
   
 # Questions
 If you have any questions please contact Akmod (tyler@utos.org)
