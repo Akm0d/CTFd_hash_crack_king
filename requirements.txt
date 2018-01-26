@@ -1,4 +1,2 @@
-Flask >= 0.10.1
-Werkzeug >= 0.10.4
 exrex >= 0.10.5
 passlib >= 1.7.1
