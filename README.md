@@ -11,9 +11,11 @@ This plugin allows you to create king-of-the-hill style password cracking challe
 $ git clone https://github.com/CTFd/CTFd.git
 $ cd CTFd
 $ ./prepare.sh
-$ cd CTFd/plugins
+$ pushd CTFd/plugins
 $ git clone https://github.com/jtylers/CTFd_hash_crack_king.git
-$ python3 ../../serve.py
+$ pip3 install -r CTFd_hash_crack_king/requirements.txt
+$ popd
+$ python3 serve.py &
 $ xdg-open 127.0.0.1:4000
 ```
     
