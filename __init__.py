@@ -1,16 +1,17 @@
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils, CTFdFlask
+from exrex import getone as regex2str
 from flask import session
 from os import getpid
 from passlib.handlers.md5_crypt import md5_crypt
+from random import choice as random
 from threading import Thread
 from time import sleep
-from typing import List, Tuple, Any, Dict
+from typing import Any, Dict, Tuple
 from werkzeug.local import LocalProxy
 
 import logging
-import random
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -28,43 +29,18 @@ def _team_name(session_id: int):
         return None
 
 
-def generate_key(key_length: int, character_set: str, word_list: List[str] or str = None) -> str:
-    # TODO Have a settings page where these parameters can be modified by an admin
-    key = ""
-    words = set()
-
+def generate_key(regex_or_file: str) -> str:
+    """
+    :param regex_or_file: Either a regular expression or the name of a file that has been uploaded to the Challenge
+    :return: A unique key
+    """
     # passwd.write(user + ':x:' + str(uid) + ':1000:Test User,,,:/home:/usr/bin/zsh\n')
-
-    # Parse the word lists
-    if isinstance(word_list, str):
-        word_list = [word_list]
-    if not word_list:
-        word_list = list()
-    for f in word_list:
-        # TODO parse all the challenge's files for the one matching this string
-        try:
-            with open(f, "r") as word_file:
-                words.union(set(x for x in word_file.readline().split()))
-        except Exception:
-            logger.error("Unable to read file '{}'".format(f))
-
-    # Choose a random word from the word lists
-    if words:
-        key = random.choice(words)[:key_length]
-    # TODO have a substitution table to translate e's to 3's and such?
-
-    # TODO translate the character set from a regex-like pattern to a set of characters
-
-    # If no character_set is defined then use a sane default
-    if not character_set:
-        character_set = "0"
-
-    # Add characters to the string until it is the right size
-    while len(key) < key_length:
-        key += random.choice(character_set)
-
-    logger.debug("Key is: '{}'".format(key))
-    return key
+    try:
+        with open(regex_or_file) as word_file:
+            # Choose a random word from the word lists
+            return random({x for x in word_file.readlines()})
+    except Exception:
+        return regex2str(regex_or_file)
 
 
 def get_hash(key: str, salt: str = 'salt') -> str:
@@ -142,7 +118,8 @@ class HashCrack(challenges.BaseChallenge):
             pass
 
         # TODO generate first key based on level or word lists before that is implemented
-        key = generate_key(key_length=3, character_set="01", word_list=files)
+        key = generate_key("[a-zA-Z]{8}")
+        print(key)
 
         # Create challenge
         chal = HashCrackKingChallenge(
@@ -253,7 +230,7 @@ class HashCrack(challenges.BaseChallenge):
             chal.king = session['id']
             king_name = _team_name(chal.king)
             # TODO generate new hash based on difficulty levels and word lists
-            chal.current_hash = get_hash(generate_key(3, "01"))
+            chal.current_hash = get_hash(generate_key("[a-zA-Z0-9]{8}"))
 
             # Challenge not solved yet, give the team first capture points
             if not solves:
