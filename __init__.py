@@ -3,7 +3,7 @@ from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils, CTFdFlask
 from exrex import getone as regex2str, simplify
 from flask import session
-from os import getpid
+from os import getcwd, getpid, path
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
 from threading import Thread
@@ -30,17 +30,28 @@ def _team_name(session_id: int):
         return None
 
 
-def generate_key(regex_or_file: str) -> str:
+def generate_key(regex_or_file: str, chal_id: int = None) -> str:
     """
+    :param chal_id:
     :param regex_or_file: Either a regular expression or the name of a file that has been uploaded to the Challenge
     :return: A unique key
     """
+    # TODO allow multiple files separated by commas.  Select a random file to open
     # passwd.write(user + ':x:' + str(uid) + ':1000:Test User,,,:/home:/usr/bin/zsh\n')
-    try:
-        with open(regex_or_file) as word_file:
+    print(getcwd())
+    if chal_id is not None:
+        word_file = next(iter(x for x in Files.query.filter_by(
+            chal=chal_id).all() if path.split(x.location)[-1] == regex_or_file), None)
+    else:
+        word_file = next([x for x in Files.query.all() if path.split(x.location)[-1] == regex_or_file], None)
+
+    if word_file is not None:
+        # FIXME is there a better way to get the absolute path of the file?
+        with open(path.join("CTFd", "uploads", word_file.location), 'r') as words:
             # Choose a random word from the word lists
-            return random({x for x in word_file.readlines()})
-    except FileNotFoundError:
+            # TODO Make sure that keys aren't repeated
+            return random([str(x).strip() for x in words.readlines()])
+    else:
         return regex2str(regex_or_file)
 
 
@@ -115,35 +126,31 @@ class HashCrack(challenges.BaseChallenge):
         :param request:
         :return:
         """
-        files = [str(x) for x in request.files.getlist('files[]')]
-        for f in files:
-            # TODO Add these files to the word_lists
-            # utils.upload_file(file=f, chalid=chal.id)
-            pass
-
-        # TODO generate first key based on level or word lists before that is implemented
         regex = simplify(request.form['regex'])
-        key = generate_key(regex)
-        name = request.form['name']
-        logger.debug("Generated key '{}' for challenge '{}'".format(key, name))
-
         # Create challenge
         chal = HashCrackKingChallenge(
-            name=name,
+            name=request.form['name'],
             description=request.form['description'],
             value=request.form['value'],
             category=request.form['category'],
             type=request.form['chaltype'],
             hold=request.form['hold'],
-            regex=regex,
+            regex=simplify(regex),
             cycles=request.form['cycles'],
-            current_hash=get_hash(key)
+            current_hash=None
         )
 
         if 'hidden' in request.form:
             chal.hidden = True
         else:
             chal.hidden = False
+
+        files = request.files.getlist('files[]')
+        for f in files:
+            utils.upload_file(file=f, chalid=chal.id)
+
+        key = generate_key(regex, chal_id=chal.id)
+        logger.debug("Generated key '{}' for challenge '{}'".format(key, chal.name))
 
         db.session.add(chal)
         db.session.commit()
@@ -161,7 +168,7 @@ class HashCrack(challenges.BaseChallenge):
         regex = simplify(request.form['regex'])
         if challenge.regex != regex:
             challenge.regex = regex
-            key = generate_key(regex)
+            key = generate_key(regex, challenge.id)
             logger.debug("Generated key '{}' for challenge '{}'".format(key, challenge.name))
             challenge.current_hash = get_hash(key)
         challenge.name = request.form['name']
@@ -239,24 +246,28 @@ class HashCrack(challenges.BaseChallenge):
         provided_key = request.form['key'].strip()
         # Compare our hash with the hash of their provided key
         if chal.current_hash == get_hash(provided_key):
+            # TODO add the key to a publicly available list of previous keys/solves
+            # TODO? allow [REGEX] to be replaced in a hint by the current key creation rules
             solves = Awards.query.filter_by(teamid=session['id'], name=chal.id,
                                             description=request.form['key'].strip()).first()
             chal.king = session['id']
             king_name = _team_name(chal.king)
             # TODO check if it is time to advance to the next difficulty level/regex
-            chal.current_hash = get_hash(generate_key(chal.regex))
+            key = generate_key(chal.regex, chal.id)
+            logger.debug("Generated key '{}' for challenge '{}'".format(key, chal.name))
+            chal.current_hash = get_hash(key)
 
             # Challenge not solved yet, give the team first capture points
             if not solves:
                 solve = Awards(teamid=session['id'], name=chal.id, value=chal.value)
                 solve.description = provided_key
                 db.session.add(solve)
-                db.session.commit()
                 logger.debug('First capture, {} points awarded.  "{}" will receive {} points every {} minutes"'.format(
                     chal.value, king_name, chal.hold, chal.cycles))
             logger.debug(
                 'Another capture, "{}" is now King of the hill and will receive {} points every {} minutes'.format(
                     king_name, chal.hold, chal.cycles))
+            db.session.commit()
             db.session.close()
             return True, 'Correct, "{}" is now king of the hill!'.format(king_name)
         db.session.close()
