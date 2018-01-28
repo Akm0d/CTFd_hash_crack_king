@@ -37,8 +37,6 @@ $ xdg-open 127.0.0.1:4000
 - Add complexity levels pressing a '+'
   - Each complexity level has the number of solves before advancing to the next complexity level and it's own "key generation data" line that is the same as described previously
   - Add the ability to rearrange complexity levels
-- Replace [KING] and [HASH] with the appropriate values in the challenge description(modal) using javascript
-- Select a word from a given word list
   
 # Questions
 If you have any questions please contact Akmod (tyler@utos.org)
