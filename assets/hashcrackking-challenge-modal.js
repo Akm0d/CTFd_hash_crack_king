@@ -24,7 +24,9 @@ $(".input-field").bind({
     }
 });
 
-var content = $('.chal-desc').text().replace("[KING]", "TODO: King").replace("[HASH]", "TODO : Hash");
-var decoded = $('<textarea/>').html(content).val();
+var data = $.get(script_root + 'admin/chal/' + $('#chal-id').val(), function(obj){
+    var content = $('.chal-desc').text().replace(/\[HASH\]/g, obj.current_hash).replace(/\[KING\]/g, obj.king);
+    var decoded = $('<textarea/>').html(content).val();
 
-$('.chal-desc').html(marked(content, {'gfm':true, 'breaks':true}));
+    $('.chal-desc').html(marked(content, {'gfm':true, 'breaks':true}));
+});

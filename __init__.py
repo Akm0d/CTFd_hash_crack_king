@@ -195,7 +195,7 @@ class HashCrack(challenges.BaseChallenge):
             'name': challenge.name,
             'value': challenge.value,
             'description': challenge.description,
-            'hash': challenge.current_hash,
+            'current_hash': challenge.current_hash,
             'king': _team_name(challenge.king),
             'category': challenge.category,
             'hidden': challenge.hidden,
