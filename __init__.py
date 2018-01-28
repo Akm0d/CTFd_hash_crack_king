@@ -43,7 +43,7 @@ def generate_key(regex_or_file: str, chal_id: int = None) -> str:
         word_file = next(iter(x for x in Files.query.filter_by(
             chal=chal_id).all() if path.split(x.location)[-1] == regex_or_file), None)
     else:
-        word_file = next([x for x in Files.query.all() if path.split(x.location)[-1] == regex_or_file], None)
+        word_file = next(iter(x for x in Files.query.all() if path.split(x.location)[-1] == regex_or_file), None)
 
     if word_file is not None:
         # FIXME is there a better way to get the absolute path of the file?
