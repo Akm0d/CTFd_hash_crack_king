@@ -1,2 +1,4 @@
+APScheduler >= 3.5.1
+Flask_APScheduler >= 1.7.1
 exrex >= 0.10.5
 passlib >= 1.7.1
