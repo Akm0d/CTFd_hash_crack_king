@@ -22,11 +22,6 @@ hash_crack_king_timers_pickle = path.join(
 )
 
 
-# TODO The following probably needs to happen in an AJAX or Javascript file.  Don't do a permanent change in storage:
-# - in the challenge description, replace [KING] with the team name of the team in control of the hill
-# - in the challenge description, replace [HASH] with the current hash
-# TODO give a useful error message if an invalid regular expression is provided to create or update
-
 def _team_name(session_id: int):
     """Return the team name for the given team id"""
     try:
@@ -252,7 +247,7 @@ class HashCrack(challenges.BaseChallenge):
         provided_key = request.form['key'].strip()
         # Compare our hash with the hash of their provided key
         if chal.current_hash == get_hash(provided_key):
-            # TODO add the key to a publicly available list of previous keys/solves
+            # TODO? add the key to a publicly available list of previous keys/solves
             # TODO? allow [REGEX] to be replaced in a hint by the current key creation rules
             solves = Awards.query.filter_by(teamid=session['id'], name=chal.id,
                                             description=request.form['key'].strip()).first()
