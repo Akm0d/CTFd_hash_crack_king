@@ -1,19 +1,19 @@
+from apscheduler.schedulers.background import BackgroundScheduler
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils, CTFdFlask
 from exrex import getone as regex2str, simplify
 from flask import session
-from os import getcwd, getpid, path
+from flask_apscheduler import APScheduler
+from os import getcwd, path
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
-from threading import Thread
-from time import sleep
 from typing import Any, Dict, Tuple
 from werkzeug.local import LocalProxy
 
 import logging
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -283,70 +283,59 @@ class HashCrack(challenges.BaseChallenge):
         """This method is not used"""
 
 
-def poll_kings(app: CTFdFlask):
+hash_crack_king_timers = dict()
+
+
+def poll_kings():
     """
     Iterate over each of the hash-cracking challenges and give hold points to each king when the hold counter is zero
     """
-    timers = dict()
-    pid_file = ".hash_crack_king_thread.pid"
-    original_pid = getpid()
-    pid = original_pid
-    # Only allow a single instance of this Thread
-    with open(pid_file, 'w+') as FILE:
-        FILE.write(str(pid))
-
-    logger.debug("Started king of the hill polling thread with pid {}".format(pid))
+    global hash_crack_king_timers
     # TODO have a settings page where this can be manually paused and restarted in case it misbehaves
     # TODO On the settings page also show the status of this thread (I.E. Running/stopped) and who is king of every hill
-    while original_pid == pid:
-        with open(pid_file, 'r+') as FILE:
-            pid = int(FILE.readline())
-        with app.app_context():
-            if not utils.get_config('paused'):
-                chals = Challenges.query.filter_by(type="hash_crack_king").all()
-                for c in chals:
-                    chal_name = c.name
-                    chal_id = c.id
-                    chal_king = c.king
-                    chal_hold = c.hold
-                    chal_cycles = c.cycles
-                    assert isinstance(c, HashCrackKingChallenge)
-                    if chal_king is None:
-                        logger.debug("There is no king for '{}'".format(chal_name))
-                    # If the game is restarted then reset the king to "None"
-                    elif not Awards.query.filter_by(teamid=chal_king, name=chal_id).first():
-                        logger.debug("Resetting the '{}' king".format(chal_name))
-                        c.king = None
+    with db.app.app_context():
+        if not utils.get_config('paused'):
+            chals = Challenges.query.filter_by(type="hash_crack_king").all()
+            for c in chals:
+                chal_name = c.name
+                chal_id = c.id
+                chal_king = c.king
+                chal_hold = c.hold
+                chal_cycles = c.cycles
+                assert isinstance(c, HashCrackKingChallenge)
+                if chal_king is None:
+                    logger.debug("There is no king for '{}'".format(chal_name))
+                # If the game is restarted then reset the king to "None"
+                elif not Awards.query.filter_by(teamid=chal_king, name=chal_id).first():
+                    logger.debug("Resetting the '{}' king".format(chal_name))
+                    c.king = None
+                    db.session.commit()
+                elif hash_crack_king_timers.get(chal_id, None) is None:
+                    logger.debug("Initializing '{}' timer".format(chal_name))
+                    hash_crack_king_timers[chal_id] = 0
+                else:
+                    assert isinstance(chal_king, int)
+                    if hash_crack_king_timers[chal_id] < chal_cycles:
+                        logger.debug("Incrementing '{}' timer'".format(chal_name))
+                        hash_crack_king_timers[chal_id] += 1
+                    if hash_crack_king_timers[chal_id] == chal_cycles:
+                        # Reset Timer
+                        logger.debug("Resetting '{}' timer".format(chal_name))
+                        hash_crack_king_timers[chal_id] = 0
+
+                        # Timer has maxed out, give points to the king
+                        logger.debug(
+                            "Giving points to team '{}' for being king of '{}'.".format(_team_name(chal_king),
+                                                                                        chal_name))
+                        solve = Awards(teamid=chal_king, name=chal_id, value=chal_hold)
+                        solve.description = "Team '{}' is king of '{}'".format(_team_name(chal_king), chal_name)
+                        db.session.add(solve)
+
                         db.session.commit()
-                    elif timers.get(chal_id, None) is None:
-                        logger.debug("Initializing '{}' timer".format(chal_name))
-                        timers[chal_id] = 0
-                    else:
-                        assert isinstance(chal_king, int)
-                        if timers[chal_id] < chal_cycles:
-                            logger.debug("Incrementing '{}' timer'".format(chal_name))
-                            timers[chal_id] += 1
-                        if timers[chal_id] == chal_cycles:
-                            # Reset Timer
-                            logger.debug("Resetting '{}' timer".format(chal_name))
-                            timers[chal_id] = 0
-
-                            # Timer has maxed out, give points to the king
-                            logger.debug(
-                                "Giving points to team '{}' for being king of '{}'.".format(_team_name(chal_king),
-                                                                                            chal_name))
-                            solve = Awards(teamid=chal_king, name=chal_id, value=chal_hold)
-                            solve.description = "Team '{}' is king of '{}'".format(_team_name(chal_king), chal_name)
-                            db.session.add(solve)
-
-                            db.session.commit()
-                            # db.session.expunge_all()
-                    logger.debug("'{}' timer is at '{}'".format(chal_name, timers.get(chal_id, 0)))
-            else:
-                logger.debug("Game is paused")
-        # Wait for the next cycle
-        sleep(60)
-    logger.info("Stopping the king-polling thread with pid {}".format(original_pid))
+                        # db.session.expunge_all()
+                logger.debug("'{}' timer is at '{}'".format(chal_name, hash_crack_king_timers.get(chal_id, 0)))
+        else:
+            logger.debug("Game is paused")
 
 
 def load(app: CTFdFlask):
@@ -356,4 +345,12 @@ def load(app: CTFdFlask):
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
-    Thread(target=poll_kings, args=[app]).start()
+    # Using the Flask-APScheduler, start a background task that polls
+    # each hash crack king challenge every 60 seconds
+    db.app = app
+    if hasattr(app, 'scheduler'):
+        pass  # TODO use the existing scheduler, or give a more unique name to this scheduler?
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(poll_kings, max_instances=1, id="hash_crack_king", trigger='interval', minutes=1)
+    app.scheduler = APScheduler(app=app, scheduler=scheduler)
+    app.scheduler.start()
