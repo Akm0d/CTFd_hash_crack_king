@@ -150,6 +150,7 @@ class HashCrack(challenges.BaseChallenge):
             utils.upload_file(file=f, chalid=chal.id)
 
         key = generate_key(regex, chal_id=chal.id)
+        chal.current_hash = get_hash(key)
         logger.debug("Generated key '{}' for challenge '{}'".format(key, chal.name))
 
         db.session.add(chal)
