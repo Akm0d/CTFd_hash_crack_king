@@ -5,16 +5,21 @@ from CTFd import utils, CTFdFlask
 from exrex import getone as regex2str, simplify
 from flask import session
 from flask_apscheduler import APScheduler
+from logging import basicConfig, getLogger, DEBUG, ERROR
 from os import getcwd, path
+from pickle import dump, load as pickle
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
 from typing import Any, Dict, Tuple
 from werkzeug.local import LocalProxy
 
-import logging
+basicConfig(level=ERROR)
+logger = getLogger(__name__)
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+hash_crack_king_timers = dict()
+hash_crack_king_timers_pickle = path.join(
+    path.dirname(__file__), '.hash_crack_king_timers.pkl'
+)
 
 
 # TODO The following probably needs to happen in an AJAX or Javascript file.  Don't do a permanent change in storage:
@@ -283,7 +288,14 @@ class HashCrack(challenges.BaseChallenge):
         """This method is not used"""
 
 
-hash_crack_king_timers = dict()
+def init_poll_kings():
+    global hash_crack_king_timers
+    if path.exists(hash_crack_king_timers_pickle):
+        with open(hash_crack_king_timers_pickle, 'rb+') as FILE:
+            try:
+                hash_crack_king_timers = pickle(FILE)
+            except EOFError:
+                pass
 
 
 def poll_kings():
@@ -336,6 +348,9 @@ def poll_kings():
                 logger.debug("'{}' timer is at '{}'".format(chal_name, hash_crack_king_timers.get(chal_id, 0)))
         else:
             logger.debug("Game is paused")
+    # Save the current state of the timers in a pickle file
+    with open(hash_crack_king_timers_pickle, 'wb+') as PICKLE:
+        dump(hash_crack_king_timers, PICKLE)
 
 
 def load(app: CTFdFlask):
@@ -345,12 +360,14 @@ def load(app: CTFdFlask):
     register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
-    # Using the Flask-APScheduler, start a background task that polls
-    # each hash crack king challenge every 60 seconds
+    # Using the Flask-APScheduler, start a background task that polls each hash crack king challenge every 60 seconds
+    init_poll_kings()
     db.app = app
     if hasattr(app, 'scheduler'):
-        pass  # TODO use the existing scheduler, or give a more unique name to this scheduler?
+        pass  # TODO use the existing scheduler or give a more unique name to this scheduler?
     scheduler = BackgroundScheduler()
-    scheduler.add_job(poll_kings, max_instances=1, id="hash_crack_king", trigger='interval', minutes=1)
+    scheduler.add_job(poll_kings, max_instances=1, id="hash_crack_king", trigger='interval', seconds=60)
+    # Add the scheduler to the app so that the thread can be paused
+    # and restarted from the TODO hash_crack_king admin page
     app.scheduler = APScheduler(app=app, scheduler=scheduler)
     app.scheduler.start()
