@@ -1,4 +1,5 @@
 *.pkl
+*.pyc
 *.state
 *.swp
 .idea
