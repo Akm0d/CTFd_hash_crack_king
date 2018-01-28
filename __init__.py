@@ -1,7 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from CTFd.plugins import challenges, register_plugin_assets_directory
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
-from CTFd import utils, CTFdFlask
+from CTFd import utils
 from exrex import getone as regex2str, simplify
 from flask import session
 from flask_apscheduler import APScheduler
@@ -10,10 +10,8 @@ from os import getcwd, path
 from pickle import dump, load as pickle
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
-from typing import Any, Dict, Tuple
-from werkzeug.local import LocalProxy
 
-basicConfig(level=ERROR)
+basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
 hash_crack_king_timers = dict()
@@ -22,15 +20,18 @@ hash_crack_king_timers_pickle = path.join(
 )
 
 
-def _team_name(session_id: int):
-    """Return the team name for the given team id"""
+def _team_name(session_id):
+    """
+    :param session_id:
+    :return: the team name for the given team id
+    """
     try:
         return Teams.query.filter_by(id=session_id).first().name
     except Exception:
         return None
 
 
-def generate_key(regex_or_file: str, chal_id: int = None) -> str:
+def generate_key(regex_or_file, chal_id=None):
     """
     :param chal_id:
     :param regex_or_file: Either a regular expression or the name of a file that has been uploaded to the Challenge
@@ -55,8 +56,12 @@ def generate_key(regex_or_file: str, chal_id: int = None) -> str:
         return regex2str(regex_or_file)
 
 
-def get_hash(key: str, salt: str = 'salt') -> str:
-    """Return a unix shadow-like password hash"""
+def get_hash(key, salt='salt'):
+    """
+    :param key: A string that represents a passphrase to be hashed
+    :param salt: The salt that will be used when generating a password hash
+    :return:  a unix shadow-like password hash
+    """
     # shadow.write(user + ':' + pass_hash + ':17080:0:99999:7:::\n')
     return md5_crypt.encrypt(key, salt=salt)
 
@@ -72,8 +77,8 @@ class HashCrackKingChallenge(Challenges):
     king = db.Column(db.Integer)
     regex = db.Column(db.String(160))
 
-    def __init__(self, name: str, description: str, value: int, category: str, hold: int,
-                 cycles: int, regex: str, type: str = 'hash_crack_king', current_hash: str = None):
+    def __init__(self, name, description, value, category, hold,
+                 cycles, regex, type='hash_crack_king', current_hash=None):
         """
         :param name:
         :param description:
@@ -119,7 +124,7 @@ class HashCrack(challenges.BaseChallenge):
     }
 
     @staticmethod
-    def create(request: LocalProxy):
+    def create(request):
         """
         This method is used to process the challenge creation request.
 
@@ -157,7 +162,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def update(challenge: HashCrackKingChallenge, request: LocalProxy):
+    def update(challenge, request):
         """
         This method is used to update the information associated with a challenge. This should be kept strictly to the
         Challenges table and any child tables.
@@ -183,7 +188,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.close()
 
     @staticmethod
-    def read(challenge: HashCrackKingChallenge) -> Tuple[HashCrackKingChallenge, Dict[str, Any]]:
+    def read(challenge):
         """
         This method is in used to access the data of a challenge in a format processable by the front end.
 
@@ -215,7 +220,7 @@ class HashCrack(challenges.BaseChallenge):
         return challenge, data
 
     @staticmethod
-    def delete(challenge: HashCrackKingChallenge):
+    def delete(challenge):
         """
         This method is used to delete the resources used by a challenge.
 
@@ -234,7 +239,7 @@ class HashCrack(challenges.BaseChallenge):
         db.session.commit()
 
     @staticmethod
-    def attempt(chal: HashCrackKingChallenge, request: LocalProxy) -> Tuple[bool, str]:
+    def attempt(chal, request):
         """
         This method is used to check whether a given input is right or wrong. It does not make any changes and should
         return a boolean for correctness and a string to be shown to the user. It is also in charge of parsing the
@@ -275,15 +280,18 @@ class HashCrack(challenges.BaseChallenge):
         return False, 'Incorrect, "{}" remains the king'.format(_team_name(chal.king))
 
     @staticmethod
-    def solve(team, chal: HashCrackKingChallenge, request: LocalProxy):
+    def solve(team, chal, request):
         """This method is not used"""
 
     @staticmethod
-    def fail(team, chal: HashCrackKingChallenge, request: LocalProxy):
+    def fail(team, chal, request):
         """This method is not used"""
 
 
 def init_poll_kings():
+    """
+    Load the cached timer data if it exists
+    """
     global hash_crack_king_timers
     if path.exists(hash_crack_king_timers_pickle):
         with open(hash_crack_king_timers_pickle, 'rb+') as FILE:
@@ -345,10 +353,10 @@ def poll_kings():
             logger.debug("Game is paused")
     # Save the current state of the timers in a pickle file
     with open(hash_crack_king_timers_pickle, 'wb+') as PICKLE:
-        dump(hash_crack_king_timers, PICKLE)
+        dump(hash_crack_king_timers, PICKLE, protocol=2)
 
 
-def load(app: CTFdFlask):
+def load(app):
     """load overrides for hash_crack_king plugin to work properly"""
     logger.setLevel(app.logger.getEffectiveLevel())
     app.db.create_all()
