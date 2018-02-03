@@ -11,7 +11,7 @@ from pickle import dump, load as pickle
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
 
-basicConfig(level=ERROR)
+basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
 hash_crack_king_timers = dict()
@@ -113,14 +113,14 @@ class HashCrack(challenges.BaseChallenge):
     cycles = 1
 
     templates = {  # Handlebars templates used for each aspect of challenge editing & viewing
-        'create': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-create.njk',
-        'update': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-update.njk',
-        'modal': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-modal.njk',
+        'create': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-create.njk',
+        'update': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-update.njk',
+        'modal': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-modal.njk',
     }
     scripts = {  # Scripts that are loaded when a template is loaded
-        'create': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-create.js',
-        'update': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-update.js',
-        'modal': '/plugins/CTFd-hash_crack_king/assets/hashcrackking-challenge-modal.js',
+        'create': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-create.js',
+        'update': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-update.js',
+        'modal': '/plugins/CTFd_hash_crack_king/assets/hashcrackking-challenge-modal.js',
     }
 
     @staticmethod
@@ -360,7 +360,7 @@ def load(app):
     """load overrides for hash_crack_king plugin to work properly"""
     logger.setLevel(app.logger.getEffectiveLevel())
     app.db.create_all()
-    register_plugin_assets_directory(app, base_path='/plugins/CTFd-hash_crack_king/assets/')
+    register_plugin_assets_directory(app, base_path='/plugins/CTFd_hash_crack_king/assets/')
     challenges.CHALLENGE_CLASSES["hash_crack_king"] = HashCrack
 
     # Using the Flask-APScheduler, start a background task that polls each hash crack king challenge every 60 seconds
