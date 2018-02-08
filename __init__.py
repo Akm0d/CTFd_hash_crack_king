@@ -11,7 +11,7 @@ from pickle import dump, load as pickle
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
 
-basicConfig(level=DEBUG)
+basicConfig(level=ERROR)
 logger = getLogger(__name__)
 
 hash_crack_king_timers = dict()
@@ -368,7 +368,8 @@ def load(app):
     db.app = app
     if hasattr(app, 'scheduler'):
         pass  # TODO use the existing scheduler or give a more unique name to this scheduler?
-    scheduler = BackgroundScheduler()
+    # The timezone is necessary for the BackgroundScheduler to be initialized correctly but further than that doesn't matter
+    scheduler = BackgroundScheduler(timezone="MST")
     scheduler.add_job(poll_kings, max_instances=1, id="hash_crack_king", trigger='interval', seconds=60)
     # Add the scheduler to the app so that the thread can be paused and restarted from the TODO hash_crack_king admin page
     app.scheduler = APScheduler(app=app, scheduler=scheduler)
