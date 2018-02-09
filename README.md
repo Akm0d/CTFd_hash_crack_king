@@ -32,6 +32,12 @@ $ xdg-open 127.0.0.1:4000
     - If a file name is given, then a key will be randomly selected from the file
     - If a regular expression is given, then a key will be randomly generated that matches the regular expression
   - Upload word lists.  These will not be visible to contestants, but will be used to generate keys and hashes.
+- In the challenge description the following replacements can will be performed:
+    - [HASH] : Current password hash
+    - [KING] : Current king of the hill
+    - [MIN] : The number of minutes in a challenge cycle
+    - [HOLD] : The number of points that will be awarded every cycle
+- [HASH] and [KING] will also be replaced in the challenge title
   
 # TODO
 - Add complexity levels pressing a '+'

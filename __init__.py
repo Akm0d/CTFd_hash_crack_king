@@ -229,6 +229,7 @@ class HashCrack(challenges.BaseChallenge):
         """
         # Needs to remove awards data as well
         Solves.query.filter_by(chalid=challenge.id).delete()
+        Awards.query.filter_by(chalid=challenge.id).delete()
         Keys.query.filter_by(chal=challenge.id).delete()
         files = Files.query.filter_by(chal=challenge.id).all()
         for f in files:

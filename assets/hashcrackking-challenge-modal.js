@@ -24,15 +24,22 @@ $(".input-field").bind({
     }
 });
 
-var data = $.get(script_root + 'admin/chal/' + $('#chal-id').val(), function(obj){
-    // Replace [HASH] and [KING] with current values
-    var content = $('.chal-desc').text().replace(/\[HASH]/g, obj.current_hash).replace(/\[KING]/g, obj.king);
+var data = $.get(script_root + 'admin/chal/' + $('#chal-id').val(), function(chal){
+    var content = $('.chal-desc').text()
+        // Replace [HASH] with the current hash
+        .replace(/\[HASH]/g, chal.current_hash)
+        // Replace [KING] with the current king
+        .replace(/\[KING]/g, chal.king)
+        // Replace [MIN] with the number of minutes in a cycle
+        .replace(/\[MIN]/g, chal.cycles)
+        // Replace [HOLD] with the number of points per cycle
+        .replace(/\[HOLD]/g, chal.hold);
     $('<textarea/>').html(content).val();
 
     $('.chal-desc').html(marked(content, {'gfm':true, 'breaks':true}));
 
     // Replace [KING] in the title with the king of the challenge
-    var title = $('.chal-name').text().replace(/\[KING]/g, obj.king);
+    var title = $('.chal-name').text().replace(/\[KING]/g, chal.king);
     $('<textarea/>').html(title).val();
     $('.chal-name').html(marked(title, {'gfm':true, 'breaks':true}));
 });
