@@ -42,4 +42,9 @@ var data = $.get(script_root + 'admin/chal/' + $('#chal-id').val(), function(cha
     var title = $('.chal-name').text().replace(/\[KING]/g, chal.king);
     $('<textarea/>').html(title).val();
     $('.chal-name').html(marked(title, {'gfm':true, 'breaks':true}));
+
+    var footer = "\\* " + chal.king + " receives " +  chal.hold + " point(s) every " + chal.cycles + " minute(s)";
+    $('<textarea/>').html(footer).val();
+    $('.chal-footer').html(marked(footer, {'gfm':true, 'breaks':true}));
+
 });
