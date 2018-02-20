@@ -210,7 +210,8 @@ class HashCrack(challenges.BaseChallenge):
             'category': challenge.category,
             'hidden': challenge.hidden,
             'cycles': challenge.cycles,
-            'regex': challenge.regex,
+            # REGEX should not be visable to non-admins unless it is added to a hint
+            # 'regex': challenge.regex,
             'hold': challenge.hold,
             'max_attempts': challenge.max_attempts,
             'type': challenge.type,
