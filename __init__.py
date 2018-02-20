@@ -3,7 +3,7 @@ from CTFd.plugins import challenges, register_plugin_assets_directory
 from CTFd.models import db, Challenges, Keys, Awards, Solves, Files, Tags, Teams
 from CTFd import utils
 from exrex import getone as regex2str, simplify
-from flask import session
+from flask import session, Blueprint, abort, jsonify, redirect, url_for, request
 from flask_apscheduler import APScheduler
 from logging import basicConfig, getLogger, DEBUG, ERROR
 from os import getcwd, path
@@ -11,8 +11,12 @@ from pickle import dump, load as pickle
 from passlib.handlers.md5_crypt import md5_crypt
 from random import choice as random
 
+from CTFd.plugins.challenges import get_chal_class
+
 basicConfig(level=ERROR)
 logger = getLogger(__name__)
+
+restful = Blueprint('hash_crack_king', __name__)
 
 hash_crack_king_timers = dict()
 hash_crack_king_timers_pickle = path.join(
@@ -289,6 +293,38 @@ class HashCrack(challenges.BaseChallenge):
         """This method is not used"""
 
 
+@restful.route('/hash_crack_king/<int:chalid>', methods=['GET'])
+def hash_crack_king_chal(chalid):
+    if utils.ctf_paused():
+        return jsonify({
+            'status': 3,
+            'message': '{} is paused'.format(utils.ctf_name())
+        })
+    if utils.ctf_ended() and not utils.view_after_ctf():
+        abort(403)
+    if not utils.user_can_view_challenges():
+        return redirect(url_for('auth.login', next=request.path))
+    if (utils.authed() and utils.is_verified() and (utils.ctf_started() or utils.view_after_ctf())) or utils.is_admin():
+        team = Teams.query.filter_by(id=session['id']).first()
+        chal = Challenges.query.filter_by(id=chalid).first_or_404()
+        if chal.hidden:
+            abort(404)
+        chal_class = get_chal_class(chal.type)
+        if chal_class is not HashCrack:
+            abort(405)
+        _, data = chal_class.read(chal)
+
+        # Anti-bruteforce / submitting keys too quickly
+        if utils.get_kpm(session['id']) > 10:
+            if utils.ctftime():
+                chal_class.fail(team=team, chal=chal, request=request)
+            logger.warn("[{0}] {1} submitted {2} with kpm {3} [TOO FAST]".format(*data))
+            # return '3' # Submitting too fast
+            return jsonify({'status': 3, 'message': "You're submitting keys too fast. Slow down."})
+
+        return jsonify(data)
+
+
 def init_poll_kings():
     """
     Load the cached timer data if it exists
@@ -310,7 +346,7 @@ def poll_kings():
     # TODO have a settings page where this can be manually paused and restarted in case it misbehaves
     # TODO On the settings page also show the status of this thread (I.E. Running/stopped) and who is king of every hill
     with db.app.app_context():
-        if not utils.get_config('paused'):
+        if not utils.ctf_paused() and not utils.ctf_ended():
             chals = Challenges.query.filter_by(type="hash_crack_king").all()
             for c in chals:
                 chal_name = c.name
@@ -375,3 +411,4 @@ def load(app):
     # Add the scheduler to the app so that the thread can be paused and restarted from the TODO hash_crack_king admin page
     app.scheduler = APScheduler(app=app, scheduler=scheduler)
     app.scheduler.start()
+    app.register_blueprint(restful)

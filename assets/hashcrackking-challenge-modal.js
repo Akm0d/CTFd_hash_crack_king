@@ -24,7 +24,7 @@ $(".input-field").bind({
     }
 });
 
-var data = $.get(script_root + 'admin/chal/' + $('#chal-id').val(), function(chal){
+var data = $.get(script_root + '/hash_crack_king/' + $('#chal-id').val(), function(chal){
     var content = $('.chal-desc').text()
         // Replace [HASH] with the current hash
         .replace(/\[HASH]/g, chal.current_hash)
