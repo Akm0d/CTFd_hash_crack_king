@@ -38,6 +38,10 @@ $ xdg-open 127.0.0.1:4000
     - [MIN] : The number of minutes in a challenge cycle
     - [HOLD] : The number of points that will be awarded every cycle
 - [HASH] and [KING] will also be replaced in the challenge title
+
+# Examples
+![HTML Code](/screenshots/html_code.png) ![HTML Preview](/screenshotos/html_preview.png)
+![Unsolved](/screenshots/unsolved.png) ![Solved](/screenshots/solved.png)
   
 # TODO
 - Add complexity levels pressing a '+'
